@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Porsche Sales Intelligence Dashboard - Executive Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #08090B;
+            color: #F3F4F6;
+        }
+
+        /* Porsche Branding & Typography */
+        .porsche-lettering {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+        }
+
+        /* Premium Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08090B;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #E2001A;
+        }
+
+        /* Glassmorphism/Premium Cards */
+        .premium-card {
+            background: rgba(14, 16, 20, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .premium-card:hover {
+            border-color: rgba(226, 0, 26, 0.3);
+            box-shadow: 0 15px 45px rgba(226, 0, 26, 0.06);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Slider Styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #1F2937;
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #E2001A;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 overflow-x-hidden">
+
+    <!-- Top Premium Navigation Bar -->
+    <header class="sticky top-0 z-50 bg-[#08090B]/90 backdrop-blur-md border-b border-neutral-900 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <svg class="w-9 h-9 text-[#E2001A] transition-transform hover:scale-105 duration-300" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L4 5v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V5l-8-3zm0 3c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm0 6c2.2 0 4 1.8 4 4v2H8v-2c0-2.2 1.8-4 4-4z" />
+            </svg>
+            <div>
+                <h1 class="porsche-lettering text-xl text-white tracking-widest">PORSCHE</h1>
+                <p class="text-[10px] tracking-wider text-neutral-400 uppercase">Sales &amp; Performance Intelligence</p>
+            </div>
+        </div>
+        
+        <!-- Live status & Upload Action -->
+        <div class="flex flex-wrap items-center gap-4">
+            <!-- Custom Sleek File Drag Drop / Selector -->
+            <label class="flex items-center gap-2 bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-800 hover:border-neutral-700 px-3 py-1.5 rounded cursor-pointer transition text-xs text-neutral-300">
+                <svg class="w-3.5 h-3.5 text-[#E2001A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Importar dados.xlsx (CSV)</span>
+                <input type="file" id="file-uploader" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
+            </label>
+
+            <div id="data-status" class="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Análise de Vendas Ativa</span>
+            </div>
+            
+            <button onclick="resetFilters()" class="text-xs text-neutral-400 hover:text-white border border-neutral-800 hover:border-neutral-700 px-3 py-1.5 rounded transition">
+                Limpar Filtros
+            </button>
+        </div>
+    </header>
+
+    <!-- Custom Notification Toast (Instead of alert) -->
+    <div id="notification-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-500 bg-neutral-950 border border-[#E2001A]/30 p-4 rounded-lg flex items-center gap-3 shadow-2xl">
+        <div class="w-8 h-8 rounded-full bg-[#E2001A]/10 flex items-center justify-center text-[#E2001A]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+        </div>
+        <div>
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider" id="toast-title">Notificação</h4>
+            <p class="text-[11px] text-neutral-400" id="toast-message">Mensagem do sistema.</p>
+        </div>
+    </div>
+
+    <main class="max-w-[1600px] mx-auto px-4 md:px-8 mt-6">
+
+        <!-- Upper Diagnostics & Filters Combo Grid -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            
+            <!-- Filters Controls (Col-8) -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-8 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-neutral-900">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-[#E2001A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                            <h2 class="text-xs font-semibold uppercase tracking-wider text-white">Filtros Avançados de Performance</h2>
+                        </div>
+                        <span class="text-xs text-neutral-500" id="filter-summary">Todos os registros exibidos</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+                        <!-- Model Filter -->
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">Família do Modelo</label>
+                            <select id="filter-model" onchange="applyFilters()" class="w-full bg-[#111215] border border-neutral-800 text-white rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#E2001A]">
+                                <option value="ALL">Todos os Modelos</option>
+                                <option value="911">911 (Carrera, GT3, Turbo)</option>
+                                <option value="Taycan">Taycan (Elétrico)</option>
+                                <option value="Macan">Macan (SUV/Elétrico)</option>
+                                <option value="Cayenne">Cayenne (SUV)</option>
+                                <option value="Panamera">Panamera</option>
+                                <option value="718">718 (Cayman/Boxster)</option>
+                            </select>
+                        </div>
+
+                        <!-- Year Filter -->
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">Ano do Modelo</label>
+                            <select id="filter-year" onchange="applyFilters()" class="w-full bg-[#111215] border border-neutral-800 text-white rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#E2001A]">
+                                <option value="ALL">Todos os Anos</option>
+                                <option value="2026">2026</option>
+                                <option value="2025">2025</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                                <option value="2022">2022</option>
+                                <option value="2021">2021</option>
+                                <option value="2020">2020</option>
+                            </select>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">Status da Entrega</label>
+                            <select id="filter-status" onchange="applyFilters()" class="w-full bg-[#111215] border border-neutral-800 text-white rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#E2001A]">
+                                <option value="ALL">Todos os Status</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Transit">In Transit</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Awaiting Delivery">Awaiting Delivery</option>
+                            </select>
+                        </div>
+
+                        <!-- City Filter -->
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">Cidade de Entrega</label>
+                            <select id="filter-city" onchange="applyFilters()" class="w-full bg-[#111215] border border-neutral-800 text-white rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#E2001A]">
+                                <option value="ALL">Todas as Cidades</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Range Sliders (Sliders for Price & Mileage) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-neutral-900">
+                    <!-- Price Range Slider -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] uppercase tracking-wider text-neutral-400">Preço Limite Máximo</span>
+                            <span id="price-slider-value" class="text-xs text-white font-semibold">$300.000</span>
+                        </div>
+                        <input type="range" id="filter-price-range" min="50000" max="300000" step="5000" value="300000" oninput="updateSlidersAndFilter()" class="w-full">
+                    </div>
+
+                    <!-- Mileage Range Slider -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] uppercase tracking-wider text-neutral-400">Quilometragem Máxima</span>
+                            <span id="mileage-slider-value" class="text-xs text-white font-semibold">50.000+ km</span>
+                        </div>
+                        <input type="range" id="filter-mileage-range" min="0" max="50000" step="1000" value="50000" oninput="updateSlidersAndFilter()" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Quality Diagnostics (Col-4) -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-4 flex flex-col justify-between border-l-2 border-cyan-500/50">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-white mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        Diagnóstico de Higienização de Dados
+                    </h3>
+                    <p class="text-[11px] text-neutral-400 mb-4">Mapeamento de integridade sobre inconsistências cronológicas e de registro ("sem data").</p>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-neutral-400">Índice de Qualidade das Datas</span>
+                            <span id="quality-percent" class="font-bold text-cyan-400">0%</span>
+                        </div>
+                        <div class="w-full bg-neutral-900 h-1.5 rounded-full overflow-hidden">
+                            <div id="quality-bar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-neutral-500">
+                            <span>Total de Linhas: <strong id="diag-total" class="text-neutral-300">0</strong></span>
+                            <span>Inconsistências: <strong id="diag-corrupt" class="text-neutral-300">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-neutral-900 flex items-center justify-between">
+                    <label class="flex items-center gap-2.5 cursor-pointer">
+                        <input type="checkbox" id="cleanse-toggle" onchange="applyFilters()" class="w-4 h-4 rounded accent-[#E2001A] bg-neutral-900 border-neutral-800">
+                        <div class="text-[11px]">
+                            <span class="font-semibold text-white block">Excluir dados inconsistentes</span>
+                            <span class="text-neutral-500">Ocultar linhas onde data = "sem data"</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- KPI Cards Grid with upgraded icons -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <!-- KPI 1 -->
+            <div class="premium-card rounded-lg p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">Faturamento Total</p>
+                        <h3 id="kpi-revenue" class="text-2xl font-bold text-white mt-1">$0</h3>
+                    </div>
+                    <div class="text-neutral-700">
+                        <!-- Revenue SVG Icon -->
+                        <svg class="w-6 h-6 text-[#E2001A]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-emerald-400 mt-4">
+                    <span class="font-semibold" id="kpi-revenue-trend">Total em Caixa</span>
+                </div>
+            </div>
+
+            <!-- KPI 2 -->
+            <div class="premium-card rounded-lg p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">Veículos Vendidos</p>
+                        <h3 id="kpi-volume" class="text-2xl font-bold text-white mt-1">0</h3>
+                    </div>
+                    <div class="text-neutral-700">
+                        <!-- Car Outline SVG Icon -->
+                        <svg class="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 011 1v2a1 1 0 01-1 1m0-4h3m-1.189-4H19l1.811 2.414A1 1 0 0121 15v1a1 1 0 01-1 1h-2.189" /></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-4">
+                    <span id="kpi-volume-desc">Entregas e pendências</span>
+                </div>
+            </div>
+
+            <!-- KPI 3 -->
+            <div class="premium-card rounded-lg p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">Preço Médio</p>
+                        <h3 id="kpi-avg-price" class="text-2xl font-bold text-white mt-1">$0</h3>
+                    </div>
+                    <div class="text-neutral-700">
+                        <!-- Ticket/Tag Icon -->
+                        <svg class="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-amber-500 mt-4">
+                    <span>Posicionamento de Mercado</span>
+                </div>
+            </div>
+
+            <!-- KPI 4 -->
+            <div class="premium-card rounded-lg p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">Quilometragem Média</p>
+                        <h3 id="kpi-avg-mileage" class="text-2xl font-bold text-white mt-1">0 km</h3>
+                    </div>
+                    <div class="text-neutral-700">
+                        <!-- Gauge Odometer Icon -->
+                        <svg class="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" /></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-4">
+                    <span id="kpi-mileage-desc">Uso médio da frota</span>
+                </div>
+            </div>
+
+            <!-- KPI 5 -->
+            <div class="premium-card rounded-lg p-5 flex flex-col justify-between border-l-2 border-[#E2001A] relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">E-Performance (EV/Hybrid)</p>
+                        <h3 id="kpi-ev-share" class="text-2xl font-bold text-[#E2001A] mt-1">0%</h3>
+                    </div>
+                    <div class="text-[#E2001A]">
+                        <!-- Lightning Bold Icon -->
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-4">
+                    <span>Modelos Taycan / E-Hybrid</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Layout Row 1: Volume por Modelo e Combustão vs Elétrico -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            <!-- Model Volume (Horizontal bar chart) -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-7">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs uppercase tracking-widest font-bold text-white">📈 Volume de Vendas por Família</h3>
+                    <span class="text-[10px] text-neutral-500">Classificação por modelo</span>
+                </div>
+                <div class="h-[280px] relative">
+                    <canvas id="chart-model-volume"></canvas>
+                </div>
+            </div>
+
+            <!-- EV vs Combustion -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-5">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs uppercase tracking-widest font-bold text-white">⚡ E-Performance vs Combustão</h3>
+                    <span class="text-[10px] text-[#E2001A] font-semibold">Participação financeira</span>
+                </div>
+                <div class="h-[280px] relative">
+                    <canvas id="chart-ev-comparison"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Layout Row 2: Status Revenue & Temporal Trend -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            <!-- Timeline Temporal Sales -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs uppercase tracking-widest font-bold text-white">📉 Tendência Temporal de Vendas</h3>
+                    <div class="flex gap-2">
+                        <button onclick="setTemporalGrouping('year')" id="btn-group-year" class="text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#E2001A] text-white transition">Ano do Modelo</button>
+                        <button onclick="setTemporalGrouping('month')" id="btn-group-month" class="text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#111215] text-neutral-400 hover:text-white transition">Data de Venda</button>
+                    </div>
+                </div>
+                <div class="h-[280px] relative">
+                    <canvas id="chart-sales-trend"></canvas>
+                </div>
+            </div>
+
+            <!-- Revenue by Status (Doughnut) -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs uppercase tracking-widest font-bold text-white">📊 Receita por Status</h3>
+                    <span class="text-[10px] text-neutral-500">Percentual do faturamento</span>
+                </div>
+                <div class="h-[280px] relative flex justify-center items-center">
+                    <canvas id="chart-status-revenue"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Geo Distribution Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            <!-- Map and Top Cities Grid -->
+            <div class="premium-card rounded-lg p-6 lg:col-span-12">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h3 class="text-xs uppercase tracking-widest font-bold text-white">🗺️ Distribuição Geográfica de Entregas</h3>
+                        <p class="text-[11px] text-neutral-400 mt-1">Análise volumétrica e financeira de entregas por polos urbanos e regionais</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-neutral-400">Cidade Líder:</span>
+                        <span id="top-city-badge" class="ml-1 text-xs font-bold text-white bg-[#E2001A] px-2.5 py-1 rounded-full">-</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- SVG Visual representation of delivery nodes (Styled as a luxury digital grid map) -->
+                    <div class="lg:col-span-7 bg-[#08090B] rounded border border-neutral-900 p-4 h-[320px] flex flex-col justify-between relative overflow-hidden">
+                        <!-- Background digital accent pattern -->
+                        <div class="absolute inset-0 opacity-[0.02] pointer-events-none" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 16px 16px;"></div>
+                        
+                        <!-- Map Content -->
+                        <div class="relative w-full h-full flex items-center justify-center">
+                            <svg class="w-full h-full text-neutral-800" viewBox="0 0 800 450" fill="none" stroke="currentColor">
+                                <!-- US simplified shape path -->
+                                <path d="M 120 120 L 180 90 L 250 100 L 320 80 L 410 90 L 480 70 L 580 80 L 680 110 L 710 130 L 730 180 L 710 240 L 750 280 L 720 340 L 640 330 L 610 380 L 540 370 L 480 340 L 410 350 L 330 380 L 260 360 L 190 340 L 150 310 L 110 280 L 80 230 L 90 170 Z" stroke-width="1.5" stroke-dasharray="6 6" fill="rgba(14, 16, 20, 0.4)" />
+                                
+                                <!-- Render Active Interactive City Nodes -->
+                                <g id="map-nodes">
+                                    <!-- Dynamic nodes injected via JS -->
+                                </g>
+                            </svg>
+                            <div class="absolute bottom-3 left-3 flex items-center gap-3 bg-neutral-950/90 px-3 py-2 rounded border border-neutral-900 text-[10px]">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-[#E2001A]"></span>
+                                    <span>Polo de Vendas Ativo</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-[#E2001A] animate-ping"></span>
+                                    <span>Foco de Demanda</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dynamic Top Cities Leaderboard -->
+                    <div class="lg:col-span-5 flex flex-col justify-between">
+                        <div class="border border-neutral-900 rounded p-4 bg-[#0E0F12]/50">
+                            <h4 class="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-4">Top 5 Polos por Faturamento</h4>
+                            <div id="city-leaderboard" class="space-y-3.5">
+                                <!-- Dynamic leaderboard rows injected here -->
+                            </div>
+                        </div>
+                        <div class="mt-4 p-4 rounded border border-[#E2001A]/10 bg-[#E2001A]/5 text-[11px] text-neutral-300">
+                            <strong>Dica de Insight:</strong> Os centros litorâneos representam o maior faturamento, com preferência por configurações completas das famílias 911 e Taycan.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Detailed Table Section -->
+        <section class="premium-card rounded-lg p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-neutral-900">
+                <div>
+                    <h3 class="text-xs uppercase tracking-widest font-bold text-white">📋 Detalhes em Tabela Dinâmica</h3>
+                    <p class="text-[11px] text-neutral-400 mt-1">Filtre e ordene clicando diretamente nas colunas</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                    <!-- Search Input -->
+                    <input type="text" id="table-search" oninput="applyFilters()" placeholder="Buscar modelo, cidade, ano..." class="bg-[#111215] border border-neutral-800 text-white rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#E2001A] w-full sm:w-64 placeholder-neutral-500">
+                    
+                    <!-- Export Button -->
+                    <button onclick="exportToCSV()" class="bg-[#111215] hover:bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-800 hover:border-neutral-700 text-xs px-3 py-1.5 rounded transition inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Exportar CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="border-b border-neutral-900 text-neutral-400 uppercase tracking-wider text-[10px]">
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition" onclick="setSort('PorscheModelSanitized')">
+                                Modelo <span id="sort-icon-PorscheModelSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition" onclick="setSort('ModelYearSanitized')">
+                                Ano <span id="sort-icon-ModelYearSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition text-right" onclick="setSort('SalesPriceSanitized')">
+                                Preço <span id="sort-icon-SalesPriceSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition text-right" onclick="setSort('VehicleMileageSanitized')">
+                                Quilometragem <span id="sort-icon-VehicleMileageSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition" onclick="setSort('CitySanitized')">
+                                Cidade <span id="sort-icon-CitySanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition" onclick="setSort('DeliveryStatusSanitized')">
+                                Status <span id="sort-icon-DeliveryStatusSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                            <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition" onclick="setSort('SaleDateSanitized')">
+                                Data de Venda <span id="sort-icon-SaleDateSanitized" class="ml-1 text-[8px]">↕</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-neutral-900/60 text-neutral-300">
+                        <!-- Dynamic Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Pagination Controls -->
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-neutral-900">
+                <div class="text-xs text-neutral-500">
+                    Exibindo <span id="table-showing-start">0</span> a <span id="table-showing-end">0</span> de <span id="table-total-count">0</span> registros
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-prev-page" onclick="prevPage()" class="bg-[#111215] hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-[#111215] border border-neutral-800 text-neutral-300 text-[11px] px-3 py-1.5 rounded transition">
+                        Anterior
+                    </button>
+                    <span class="text-xs text-neutral-400 font-semibold px-2" id="current-page-num">Página 1</span>
+                    <button id="btn-next-page" onclick="nextPage()" class="bg-[#111215] hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-[#111215] border border-neutral-800 text-neutral-300 text-[11px] px-3 py-1.5 rounded transition">
+                        Próxima
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer Area / Brand Placement -->
+    <footer class="mt-16 border-t border-neutral-950 pt-8 px-6 text-center max-w-[1600px] mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-neutral-500">
+            <p>© 2026 Porsche Sales Intelligence. Todos os direitos reservados.</p>
+            <p class="text-[10px] tracking-widest uppercase font-semibold text-neutral-600 border border-neutral-900/80 px-3 py-1 rounded">
+                projeto desenvolvido para o Bootcamp Santander - Excel com IA e Claude
+            </p>
+        </div>
+    </footer>
+
+    <!-- App Logic Script -->
+    <script>
+        const FALLBACK_DATA = [
+            { "SaleDateSanitized": "2024-03-14", "PorscheModelSanitized": "718 Cayman", "ModelYearSanitized": 2022, "SalesPriceSanitized": 79500.00, "VehicleMileageSanitized": 9800, "CitySanitized": "Boston", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-03-14", "PorscheModelSanitized": "911 Turbo S", "ModelYearSanitized": 2024, "SalesPriceSanitized": 235000.00, "VehicleMileageSanitized": 1200, "CitySanitized": "Seattle", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-04-18", "PorscheModelSanitized": "Cayenne Coupe", "ModelYearSanitized": 2023, "SalesPriceSanitized": 112750.00, "VehicleMileageSanitized": 6400, "CitySanitized": "Austin", "DeliveryStatusSanitized": "In Transit" },
+            { "SaleDateSanitized": "sem data", "PorscheModelSanitized": "Macan S", "ModelYearSanitized": 2021, "SalesPriceSanitized": 68900.00, "VehicleMileageSanitized": 28, "CitySanitized": "Denver", "DeliveryStatusSanitized": "Pending" },
+            { "SaleDateSanitized": "2024-05-22", "PorscheModelSanitized": "Taycan 4S", "ModelYearSanitized": 2024, "SalesPriceSanitized": 121000.00, "VehicleMileageSanitized": 0, "CitySanitized": "Los Angeles", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-08-06", "PorscheModelSanitized": "Panamera 4", "ModelYearSanitized": 2023, "SalesPriceSanitized": 104500.00, "VehicleMileageSanitized": 14500, "CitySanitized": "Miami", "DeliveryStatusSanitized": "Cancelled" },
+            { "SaleDateSanitized": "2024-07-11", "PorscheModelSanitized": "911 Carrera S", "ModelYearSanitized": 2020, "SalesPriceSanitized": 96300.00, "VehicleMileageSanitized": 41000, "CitySanitized": "New York", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "sem data", "PorscheModelSanitized": "Cayenne E-Hybrid", "ModelYearSanitized": 2022, "SalesPriceSanitized": 89750.00, "VehicleMileageSanitized": 11744, "CitySanitized": "San Diego", "DeliveryStatusSanitized": "Pending" },
+            { "SaleDateSanitized": "2024-08-19", "PorscheModelSanitized": "718 Boxster", "ModelYearSanitized": 2021, "SalesPriceSanitized": 73500.00, "VehicleMileageSanitized": 22300, "CitySanitized": "Chicago", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-09-02", "PorscheModelSanitized": "911 GT3 RS", "ModelYearSanitized": 2025, "SalesPriceSanitized": 284900.00, "VehicleMileageSanitized": 150, "CitySanitized": "Miami", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-10-15", "PorscheModelSanitized": "Taycan GTS", "ModelYearSanitized": 2024, "SalesPriceSanitized": 139200.00, "VehicleMileageSanitized": 3200, "CitySanitized": "San Jose", "DeliveryStatusSanitized": "In Transit" },
+            { "SaleDateSanitized": "2024-11-20", "PorscheModelSanitized": "Macan GTS", "ModelYearSanitized": 2023, "SalesPriceSanitized": 91800.00, "VehicleMileageSanitized": 8900, "CitySanitized": "Boston", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2024-12-05", "PorscheModelSanitized": "Cayenne Turbo", "ModelYearSanitized": 2025, "SalesPriceSanitized": 168500.00, "VehicleMileageSanitized": 100, "CitySanitized": "Seattle", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-01-10", "PorscheModelSanitized": "Panamera GTS", "ModelYearSanitized": 2024, "SalesPriceSanitized": 142000.00, "VehicleMileageSanitized": 4500, "CitySanitized": "Chicago", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-02-18", "PorscheModelSanitized": "911 Targa 4", "ModelYearSanitized": 2023, "SalesPriceSanitized": 134500.00, "VehicleMileageSanitized": 12400, "CitySanitized": "Scottsdale", "DeliveryStatusSanitized": "Awaiting Delivery" },
+            { "SaleDateSanitized": "2025-03-24", "PorscheModelSanitized": "Taycan Turbo S", "ModelYearSanitized": 2025, "SalesPriceSanitized": 194900.00, "VehicleMileageSanitized": 0, "CitySanitized": "Tampa", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "sem data", "PorscheModelSanitized": "Macan S", "ModelYearSanitized": 2022, "SalesPriceSanitized": 73200.00, "VehicleMileageSanitized": 18600, "CitySanitized": "Norfolk", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-05-15", "PorscheModelSanitized": "911 Carrera GTS", "ModelYearSanitized": 2024, "SalesPriceSanitized": 158200.00, "VehicleMileageSanitized": 2100, "CitySanitized": "Los Angeles", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-06-30", "PorscheModelSanitized": "Cayenne Coupe S", "ModelYearSanitized": 2024, "SalesPriceSanitized": 121500.00, "VehicleMileageSanitized": 5100, "CitySanitized": "Denver", "DeliveryStatusSanitized": "In Transit" },
+            { "SaleDateSanitized": "2025-08-11", "PorscheModelSanitized": "Macan Electric", "ModelYearSanitized": 2026, "SalesPriceSanitized": 84100.00, "VehicleMileageSanitized": 0, "CitySanitized": "Orlando", "DeliveryStatusSanitized": "Awaiting Delivery" },
+            { "SaleDateSanitized": "2025-09-05", "PorscheModelSanitized": "718 Cayman GT4", "ModelYearSanitized": 2023, "SalesPriceSanitized": 128900.00, "VehicleMileageSanitized": 3600, "CitySanitized": "Boise", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-10-22", "PorscheModelSanitized": "Taycan 4 Cross Turismo", "ModelYearSanitized": 2024, "SalesPriceSanitized": 118400.00, "VehicleMileageSanitized": 8100, "CitySanitized": "Chesapeake", "DeliveryStatusSanitized": "Pending" },
+            { "SaleDateSanitized": "2025-11-14", "PorscheModelSanitized": "911 Carrera 4S", "ModelYearSanitized": 2022, "SalesPriceSanitized": 124600.00, "VehicleMileageSanitized": 19400, "CitySanitized": "San Jose", "DeliveryStatusSanitized": "Delivered" },
+            { "SaleDateSanitized": "2025-12-01", "PorscheModelSanitized": "Panamera E-Hybrid", "ModelYearSanitized": 2023, "SalesPriceSanitized": 115000.00, "VehicleMileageSanitized": 11500, "CitySanitized": "Boston", "DeliveryStatusSanitized": "Delivered" }
+        ];
+
+        const CITY_COORDINATES = {
+            "Boston": { x: 675, y: 130 }, "Seattle": { x: 130, y: 80 }, "Austin": { x: 390, y: 340 },
+            "Denver": { x: 300, y: 210 }, "Los Angeles": { x: 120, y: 260 }, "Miami": { x: 650, y: 380 },
+            "New York": { x: 660, y: 155 }, "San Diego": { x: 140, y: 285 }, "Chicago": { x: 530, y: 160 },
+            "Tampa": { x: 615, y: 350 }, "Scottsdale": { x: 210, y: 270 }, "Norfolk": { x: 650, y: 195 },
+            "Boise": { x: 190, y: 140 }, "Orlando": { x: 630, y: 340 }, "San Jose": { x: 95, y: 220 },
+            "Irving": { x: 395, y: 310 }, "Chesapeake": { x: 655, y: 190 }
+        };
+
+        let rawDataset = [];
+        let filteredDataset = [];
+        let temporalGroupingMode = 'year';
+        let currentPage = 1;
+        const rowsPerPage = 7;
+        let currentSortColumn = 'PorscheModelSanitized';
+        let isSortAscending = true;
+        let chartInstances = {};
+
+        // Application Start
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            try {
+                // Tenta puxar o arquivo padrão Sanitized que o Claude salvou localmente
+                const response = await fetch('dados.xlsx - Sanitized.csv');
+                if (response.ok) {
+                    const csvText = await response.text();
+                    rawDataset = parseCSV(csvText);
+                    showToast("Sucesso", "Base de dados carregada de 'dados.xlsx'.", "emerald");
+                } else {
+                    throw new Error("Local dataset file not found, applying high-fidelity backup.");
+                }
+            } catch (err) {
+                rawDataset = parseFallbackData(FALLBACK_DATA);
+                showToast("Simulação", "Exibindo dados integrados de simulação Porsche.", "amber");
+                document.getElementById('data-status').innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>Modo Simulação Ativo</span>
+                `;
+                document.getElementById('data-status').className = "flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20";
+            } finally {
+                populateCityFilter();
+                calculateDiagnostics();
+                applyFilters();
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    rawDataset = parseCSV(text);
+                    populateCityFilter();
+                    calculateDiagnostics();
+                    applyFilters();
+                    showToast("Base Atualizada", `Carregados ${rawDataset.length} registros com sucesso!`, "emerald");
+                    document.getElementById('data-status').innerHTML = `
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Dados do Usuário Ativos</span>
+                    `;
+                    document.getElementById('data-status').className = "flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20";
+                } catch (err) {
+                    showToast("Erro de Leitura", "Certifique-se de carregar um arquivo CSV válido.", "red");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // CSV parsing supporting quoted fields
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            if (lines.length < 2) return [];
+            
+            // Map header positions automatically
+            const headers = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
+            const result = [];
+            
+            // Match our expected sanitized models
+            const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('data'));
+            const modelIdx = headers.findIndex(h => h.includes('model'));
+            const yearIdx = headers.findIndex(h => h.includes('year') || h.includes('ano'));
+            const priceIdx = headers.findIndex(h => h.includes('price') || h.includes('preço') || h.includes('venda'));
+            const mileageIdx = headers.findIndex(h => h.includes('mileage') || h.includes('quilometragem') || h.includes('km'));
+            const cityIdx = headers.findIndex(h => h.includes('city') || h.includes('cidade'));
+            const statusIdx = headers.findIndex(h => h.includes('status') || h.includes('entrega'));
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                // Advanced quote splitting
+                let currentLine = [];
+                let insideQuotes = false;
+                let currentToken = '';
+                
+                for (let char of lines[i]) {
+                    if (char === '"') {
+                        insideQuotes = !insideQuotes;
+                    } else if (char === ',' && !insideQuotes) {
+                        currentLine.push(currentToken.trim());
+                        currentToken = '';
+                    } else {
+                        currentToken += char;
+                    }
+                }
+                currentLine.push(currentToken.trim());
+
+                if (currentLine.length < headers.length) continue;
+
+                const rawDate = dateIdx !== -1 ? currentLine[dateIdx] : 'sem data';
+                const model = modelIdx !== -1 ? currentLine[modelIdx] : 'Outro';
+                const year = yearIdx !== -1 ? parseInt(currentLine[yearIdx]) : 2023;
+                const price = priceIdx !== -1 ? parseFloat(currentLine[priceIdx].replace(/[^0-9.-]/g, '')) : 0;
+                const mileage = mileageIdx !== -1 ? parseFloat(currentLine[mileageIdx].replace(/[^0-9.-]/g, '')) : 0;
+                const city = cityIdx !== -1 ? currentLine[cityIdx] : 'Desconhecida';
+                const status = statusIdx !== -1 ? currentLine[statusIdx] : 'Pending';
+
+                result.push({
+                    SaleDateSanitized: rawDate,
+                    PorscheModelSanitized: model,
+                    ModelYearSanitized: isNaN(year) ? 2023 : year,
+                    SalesPriceSanitized: isNaN(price) ? 120000 : price,
+                    VehicleMileageSanitized: isNaN(mileage) ? 0 : mileage,
+                    CitySanitized: city,
+                    DeliveryStatusSanitized: status
+                });
+            }
+            return result;
+        }
+
+        function parseFallbackData(data) {
+            return data.map(item => ({
+                ...item,
+                ModelYearSanitized: parseInt(item.ModelYearSanitized) || 2022,
+                SalesPriceSanitized: parseFloat(item.SalesPriceSanitized) || 0,
+                VehicleMileageSanitized: parseFloat(item.VehicleMileageSanitized) || 0
+            }));
+        }
+
+        function calculateDiagnostics() {
+            if (rawDataset.length === 0) return;
+            
+            const corruptRows = rawDataset.filter(item => 
+                !item.SaleDateSanitized || 
+                item.SaleDateSanitized.toLowerCase().includes('sem data') || 
+                item.SaleDateSanitized.trim() === ''
+            ).length;
+
+            const totalRows = rawDataset.length;
+            const qualityPercentage = ((totalRows - corruptRows) / totalRows) * 100;
+
+            document.getElementById('quality-percent').textContent = `${qualityPercentage.toFixed(0)}%`;
+            document.getElementById('quality-bar').style.width = `${qualityPercentage}%`;
+            document.getElementById('diag-total').textContent = totalRows;
+            document.getElementById('diag-corrupt').textContent = corruptRows;
+        }
+
+        function populateCityFilter() {
+            const cityFilterElement = document.getElementById('filter-city');
+            const uniqueCities = [...new Set(rawDataset.map(item => item.CitySanitized))].sort();
+            
+            cityFilterElement.innerHTML = '<option value="ALL">Todas as Cidades</option>';
+            
+            uniqueCities.forEach(city => {
+                const opt = document.createElement('option');
+                opt.value = city;
+                opt.textContent = city;
+                cityFilterElement.appendChild(opt);
+            });
+        }
+
+        function getModelFamily(modelName) {
+            const lowerModel = modelName.toLowerCase();
+            if (lowerModel.includes('911')) return '911';
+            if (lowerModel.includes('taycan')) return 'Taycan';
+            if (lowerModel.includes('macan')) return 'Macan';
+            if (lowerModel.includes('cayenne')) return 'Cayenne';
+            if (lowerModel.includes('panamera')) return 'Panamera';
+            if (lowerModel.includes('718') || lowerModel.includes('cayman') || lowerModel.includes('boxster')) return '718';
+            return 'Outro';
+        }
+
+        function isElectricOrHybrid(modelName) {
+            const lowerModel = modelName.toLowerCase();
+            return lowerModel.includes('taycan') || lowerModel.includes('electric') || lowerModel.includes('hybrid') || lowerModel.includes('e-hybrid');
+        }
+
+        function updateSlidersAndFilter() {
+            const priceVal = parseInt(document.getElementById('filter-price-range').value);
+            const mileageVal = parseInt(document.getElementById('filter-mileage-range').value);
+
+            // Display labels updates
+            document.getElementById('price-slider-value').textContent = `$${priceVal.toLocaleString('en-US')}`;
+            document.getElementById('mileage-slider-value').textContent = mileageVal === 50000 ? "50.000+ km" : `${mileageVal.toLocaleString()} km`;
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const selectedModel = document.getElementById('filter-model').value;
+            const selectedYear = document.getElementById('filter-year').value;
+            const selectedStatus = document.getElementById('filter-status').value;
+            const selectedCity = document.getElementById('filter-city').value;
+            const tableSearchQuery = document.getElementById('table-search').value.toLowerCase();
+            const maxPrice = parseInt(document.getElementById('filter-price-range').value);
+            const maxMileage = parseInt(document.getElementById('filter-mileage-range').value);
+            const shouldCleanse = document.getElementById('cleanse-toggle').checked;
+
+            filteredDataset = rawDataset.filter(item => {
+                // Exclude invalid dates if Cleanse Toggle is active
+                if (shouldCleanse) {
+                    const isCorrupt = !item.SaleDateSanitized || item.SaleDateSanitized.toLowerCase().includes('sem data');
+                    if (isCorrupt) return false;
+                }
+
+                // Model match
+                if (selectedModel !== 'ALL') {
+                    const family = getModelFamily(item.PorscheModelSanitized);
+                    if (family !== selectedModel) return false;
+                }
+
+                // Year match
+                if (selectedYear !== 'ALL' && item.ModelYearSanitized.toString() !== selectedYear) {
+                    return false;
+                }
+
+                // Status match
+                if (selectedStatus !== 'ALL') {
+                    if (selectedStatus === 'Pending') {
+                        if (!item.DeliveryStatusSanitized.toLowerCase().includes('pending')) return false;
+                    } else if (item.DeliveryStatusSanitized !== selectedStatus) {
+                        return false;
+                    }
+                }
+
+                // City match
+                if (selectedCity !== 'ALL' && item.CitySanitized !== selectedCity) {
+                    return false;
+                }
+
+                // Sliders boundaries match
+                if (item.SalesPriceSanitized > maxPrice) return false;
+                if (maxMileage < 50000 && item.VehicleMileageSanitized > maxMileage) return false;
+
+                // Search matching
+                if (tableSearchQuery) {
+                    const matchesModel = item.PorscheModelSanitized.toLowerCase().includes(tableSearchQuery);
+                    const matchesCity = item.CitySanitized.toLowerCase().includes(tableSearchQuery);
+                    const matchesStatus = item.DeliveryStatusSanitized.toLowerCase().includes(tableSearchQuery);
+                    if (!matchesModel && !matchesCity && !matchesStatus) return false;
+                }
+
+                return true;
+            });
+
+            currentPage = 1;
+
+            updateKPIs();
+            renderCharts();
+            renderTable();
+            renderMap();
+            
+            document.getElementById('filter-summary').textContent = `${filteredDataset.length} de ${rawDataset.length} correspondências encontradas`;
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-model').value = 'ALL';
+            document.getElementById('filter-year').value = 'ALL';
+            document.getElementById('filter-status').value = 'ALL';
+            document.getElementById('filter-city').value = 'ALL';
+            document.getElementById('table-search').value = '';
+            document.getElementById('filter-price-range').value = 300000;
+            document.getElementById('filter-mileage-range').value = 50000;
+            document.getElementById('cleanse-toggle').checked = false;
+            updateSlidersAndFilter();
+        }
+
+        function updateKPIs() {
+            if (filteredDataset.length === 0) {
+                document.getElementById('kpi-revenue').textContent = '$0';
+                document.getElementById('kpi-volume').textContent = '0';
+                document.getElementById('kpi-avg-price').textContent = '$0';
+                document.getElementById('kpi-avg-mileage').textContent = '0 km';
+                document.getElementById('kpi-ev-share').textContent = '0%';
+                return;
+            }
+
+            const totalRevenue = filteredDataset.reduce((sum, item) => sum + item.SalesPriceSanitized, 0);
+            const totalVolume = filteredDataset.length;
+            const avgPrice = totalRevenue / totalVolume;
+            const totalMileage = filteredDataset.reduce((sum, item) => sum + item.VehicleMileageSanitized, 0);
+            const avgMileage = totalMileage / totalVolume;
+            
+            const evVolume = filteredDataset.filter(item => isElectricOrHybrid(item.PorscheModelSanitized)).length;
+            const evShare = (evVolume / totalVolume) * 100;
+
+            document.getElementById('kpi-revenue').textContent = totalRevenue.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            document.getElementById('kpi-volume').textContent = totalVolume.toLocaleString();
+            document.getElementById('kpi-avg-price').textContent = avgPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            document.getElementById('kpi-avg-mileage').textContent = `${Math.round(avgMileage).toLocaleString()} km`;
+            document.getElementById('kpi-ev-share').textContent = `${evShare.toFixed(1)}%`;
+        }
+
+        function setSort(columnName) {
+            if (currentSortColumn === columnName) {
+                isSortAscending = !isSortAscending;
+            } else {
+                currentSortColumn = columnName;
+                isSortAscending = true;
+            }
+            
+            const columns = ['PorscheModelSanitized', 'ModelYearSanitized', 'SalesPriceSanitized', 'VehicleMileageSanitized', 'CitySanitized', 'DeliveryStatusSanitized', 'SaleDateSanitized'];
+            columns.forEach(col => {
+                const el = document.getElementById(`sort-icon-${col}`);
+                if (el) {
+                    if (col === currentSortColumn) {
+                        el.textContent = isSortAscending ? '▲' : '▼';
+                        el.className = "text-[#E2001A] font-bold";
+                    } else {
+                        el.textContent = '↕';
+                        el.className = "text-neutral-600";
+                    }
+                }
+            });
+
+            renderTable();
+        }
+
+        function renderTable() {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+
+            if (filteredDataset.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-neutral-500 uppercase tracking-widest text-[11px]">
+                            Nenhum registro correspondente encontrado
+                        </td>
+                    </tr>
+                `;
+                updatePaginationControls(0);
+                return;
+            }
+
+            const sortedData = [...filteredDataset].sort((a, b) => {
+                let valA = a[currentSortColumn];
+                let valB = b[currentSortColumn];
+
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return isSortAscending ? -1 : 1;
+                if (valA > valB) return isSortAscending ? 1 : -1;
+                return 0;
+            });
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, sortedData.length);
+            const paginatedData = sortedData.slice(startIndex, endIndex);
+
+            paginatedData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#111215]/50 transition border-b border-neutral-900/60 text-neutral-300";
+                
+                let statusBadgeClass = "bg-neutral-800 text-neutral-300 border border-neutral-700";
+                const cleanStatus = item.DeliveryStatusSanitized.toLowerCase();
+                if (cleanStatus.includes('delivered')) {
+                    statusBadgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                } else if (cleanStatus.includes('pending')) {
+                    statusBadgeClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                } else if (cleanStatus.includes('cancelled')) {
+                    statusBadgeClass = "bg-[#E2001A]/10 text-red-400 border border-[#E2001A]/20";
+                } else if (cleanStatus.includes('transit')) {
+                    statusBadgeClass = "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20";
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white">${item.PorscheModelSanitized}</td>
+                    <td class="py-3 px-4 text-neutral-400">${item.ModelYearSanitized}</td>
+                    <td class="py-3 px-4 text-right font-bold text-neutral-100">${item.SalesPriceSanitized.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                    <td class="py-3 px-4 text-right text-neutral-400">${item.VehicleMileageSanitized.toLocaleString()} km</td>
+                    <td class="py-3 px-4 font-medium text-neutral-300">${item.CitySanitized}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2.5 py-1 text-[10px] rounded-full font-medium ${statusBadgeClass}">
+                            ${item.DeliveryStatusSanitized}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-neutral-500">${item.SaleDateSanitized}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            updatePaginationControls(sortedData.length);
+        }
+
+        function updatePaginationControls(totalCount) {
+            const startRange = totalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+            const endRange = Math.min(currentPage * rowsPerPage, totalCount);
+            
+            document.getElementById('table-showing-start').textContent = startRange;
+            document.getElementById('table-showing-end').textContent = endRange;
+            document.getElementById('table-total-count').textContent = totalCount;
+
+            const totalPages = Math.ceil(totalCount / rowsPerPage);
+            document.getElementById('current-page-num').textContent = `Página ${currentPage} de ${totalPages || 1}`;
+
+            document.getElementById('btn-prev-page').disabled = currentPage === 1;
+            document.getElementById('btn-next-page').disabled = currentPage >= totalPages;
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredDataset.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        function exportToCSV() {
+            if (filteredDataset.length === 0) return;
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "SaleDate,Model,ModelYear,SalesPrice,Mileage,City,DeliveryStatus\r\n";
+
+            filteredDataset.forEach(row => {
+                const line = [
+                    row.SaleDateSanitized,
+                    `"${row.PorscheModelSanitized}"`,
+                    row.ModelYearSanitized,
+                    row.SalesPriceSanitized,
+                    row.VehicleMileageSanitized,
+                    `"${row.CitySanitized}"`,
+                    `"${row.DeliveryStatusSanitized}"`
+                ].join(",");
+                csvContent += line + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `PORSCHE_Dashboard_Export_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Sucesso", "Ficheiro CSV gerado e descarregado.", "emerald");
+        }
+
+        function renderMap() {
+            const nodesContainer = document.getElementById('map-nodes');
+            nodesContainer.innerHTML = '';
+
+            const cityMetrics = {};
+            filteredDataset.forEach(item => {
+                const city = item.CitySanitized;
+                if (!cityMetrics[city]) {
+                    cityMetrics[city] = { revenue: 0, count: 0 };
+                }
+                cityMetrics[city].revenue += item.SalesPriceSanitized;
+                cityMetrics[city].count += 1;
+            });
+
+            let topCity = '-';
+            let topCityRevenue = 0;
+            const cityEntries = Object.entries(cityMetrics);
+            
+            cityEntries.forEach(([city, metrics]) => {
+                if (metrics.revenue > topCityRevenue) {
+                    topCityRevenue = metrics.revenue;
+                    topCity = city;
+                }
+            });
+            document.getElementById('top-city-badge').textContent = topCity !== '-' ? `${topCity} (${topCityRevenue.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })})` : '-';
+
+            cityEntries.forEach(([city, metrics]) => {
+                const coords = CITY_COORDINATES[city];
+                if (!coords) return;
+
+                const baseRadius = 6;
+                const maxVolumeValue = Math.max(...cityEntries.map(([_, m]) => m.count));
+                const radius = baseRadius + (metrics.count / (maxVolumeValue || 1)) * 12;
+
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", "cursor-pointer group");
+                
+                const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+                title.textContent = `${city}: ${metrics.count} Unidade(s) - $${metrics.revenue.toLocaleString()}`;
+                g.appendChild(title);
+
+                const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                ring.setAttribute("cx", coords.x);
+                ring.setAttribute("cy", coords.y);
+                ring.setAttribute("r", radius + 4);
+                ring.setAttribute("fill", "none");
+                ring.setAttribute("stroke", "#E2001A");
+                ring.setAttribute("stroke-width", "1.5");
+                ring.setAttribute("class", "opacity-0 group-hover:opacity-100 transition duration-300");
+                g.appendChild(ring);
+
+                const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                core.setAttribute("cx", coords.x);
+                core.setAttribute("cy", coords.y);
+                core.setAttribute("r", radius);
+                core.setAttribute("fill", "#E2001A");
+                core.setAttribute("class", "opacity-85 hover:opacity-100 transition");
+                g.appendChild(core);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", coords.x);
+                text.setAttribute("y", coords.y - radius - 4);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("fill", "#FFFFFF");
+                text.setAttribute("font-size", "9");
+                text.setAttribute("font-weight", "600");
+                text.setAttribute("class", "opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none");
+                text.textContent = city;
+                g.appendChild(text);
+
+                nodesContainer.appendChild(g);
+            });
+
+            // Populate Top 5 Leaderboard
+            const leaderboardContainer = document.getElementById('city-leaderboard');
+            leaderboardContainer.innerHTML = '';
+
+            const sortedCities = cityEntries
+                .sort((a, b) => b[1].revenue - a[1].revenue)
+                .slice(0, 5);
+
+            if (sortedCities.length === 0) {
+                leaderboardContainer.innerHTML = `<p class="text-xs text-neutral-500 italic py-4 text-center">Nenhum polo correspondente</p>`;
+                return;
+            }
+
+            const maxLeaderboardRevenue = sortedCities[0]?.[1].revenue || 1;
+
+            sortedCities.forEach(([city, metrics], idx) => {
+                const pct = (metrics.revenue / maxLeaderboardRevenue) * 100;
+                
+                const row = document.createElement('div');
+                row.className = "flex flex-col gap-1";
+                row.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-neutral-500 font-bold">#${idx+1}</span>
+                            <span class="text-white font-medium">${city}</span>
+                            <span class="text-[10px] text-neutral-400">(${metrics.count} un)</span>
+                        </div>
+                        <span class="font-semibold text-neutral-100">$${metrics.revenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div class="w-full bg-neutral-900 h-1 rounded overflow-hidden">
+                        <div class="bg-gradient-to-r from-[#E2001A]/40 to-[#E2001A] h-full" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                leaderboardContainer.appendChild(row);
+            });
+        }
+
+        function renderCharts() {
+            Object.values(chartInstances).forEach(chart => chart.destroy());
+
+            // 1. Model Volume
+            const modelCounts = {};
+            filteredDataset.forEach(item => {
+                const family = getModelFamily(item.PorscheModelSanitized);
+                modelCounts[family] = (modelCounts[family] || 0) + 1;
+            });
+
+            const modelLabels = Object.keys(modelCounts).sort((a, b) => modelCounts[b] - modelCounts[a]);
+            const modelData = modelLabels.map(l => modelCounts[l]);
+
+            const ctxVolume = document.getElementById('chart-model-volume').getContext('2d');
+            chartInstances.volume = new Chart(ctxVolume, {
+                type: 'bar',
+                data: {
+                    labels: modelLabels,
+                    datasets: [{
+                        label: 'Unidades Vendidas',
+                        data: modelData,
+                        backgroundColor: '#E2001A',
+                        hoverBackgroundColor: '#FF1E38',
+                        borderRadius: 3,
+                        barThickness: 16
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0E1014',
+                            titleColor: '#fff',
+                            borderColor: '#222',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#16171B' },
+                            ticks: { color: '#6B7280', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#9CA3AF', font: { size: 10, weight: '500' } }
+                        }
+                    }
+                }
+            });
+
+            // 2. EV vs Combustion Ratio
+            let evTotal = 0;
+            let combustionTotal = 0;
+
+            filteredDataset.forEach(item => {
+                if (isElectricOrHybrid(item.PorscheModelSanitized)) {
+                    evTotal += item.SalesPriceSanitized;
+                } else {
+                    combustionTotal += item.SalesPriceSanitized;
+                }
+            });
+
+            const ctxEv = document.getElementById('chart-ev-comparison').getContext('2d');
+            chartInstances.ev = new Chart(ctxEv, {
+                type: 'bar',
+                data: {
+                    labels: ['E-Performance', 'Combustão Interna'],
+                    datasets: [{
+                        label: 'Faturamento de Vendas',
+                        data: [evTotal, combustionTotal],
+                        backgroundColor: ['#E2001A', '#1F2937'],
+                        hoverBackgroundColor: ['#FF1E38', '#374151'],
+                        borderRadius: 4,
+                        maxBarThickness: 45
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return `$${context.raw.toLocaleString()}`; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9CA3AF', font: { size: 10, weight: '600' } }
+                        },
+                        y: {
+                            grid: { color: '#16171B' },
+                            ticks: { 
+                                color: '#6B7280', 
+                                font: { size: 10 },
+                                callback: function(value) { return '$' + (value / 1000) + 'k'; }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. Status Revenue Doughnut Chart
+            const statusRevenue = {};
+            filteredDataset.forEach(item => {
+                let status = item.DeliveryStatusSanitized;
+                if (status.toLowerCase().includes('pending')) status = 'Pending';
+                statusRevenue[status] = (statusRevenue[status] || 0) + item.SalesPriceSanitized;
+            });
+
+            const statusLabels = Object.keys(statusRevenue);
+            const statusData = Object.values(statusRevenue);
+
+            const statusColors = {
+                'Delivered': '#00B074', 'Pending': '#E2A000',
+                'Cancelled': '#E2001A', 'In Transit': '#00A2E2',
+                'Awaiting Delivery': '#7000E2'
+            };
+            const bgColors = statusLabels.map(label => statusColors[label] || '#4B5563');
+
+            const ctxStatus = document.getElementById('chart-status-revenue').getContext('2d');
+            chartInstances.status = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: bgColors,
+                        borderWidth: 2,
+                        borderColor: '#08090B',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10, boxHeight: 10,
+                                color: '#9CA3AF',
+                                font: { size: 9, weight: '500' },
+                                padding: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ` $${context.raw.toLocaleString()}`; }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 4. Temporal Sales Trends
+            let trendData = {};
+            
+            if (temporalGroupingMode === 'year') {
+                filteredDataset.forEach(item => {
+                    const year = item.ModelYearSanitized;
+                    trendData[year] = (trendData[year] || 0) + item.SalesPriceSanitized;
+                });
+            } else {
+                filteredDataset.forEach(item => {
+                    const dateStr = item.SaleDateSanitized;
+                    if (dateStr && dateStr !== 'sem data') {
+                        const m = dateStr.slice(0, 7); // YYYY-MM
+                        trendData[m] = (trendData[m] || 0) + item.SalesPriceSanitized;
+                    }
+                });
+            }
+
+            const sortedTrendLabels = Object.keys(trendData).sort();
+            const sortedTrendValues = sortedTrendLabels.map(l => trendData[l]);
+
+            const ctxTrend = document.getElementById('chart-sales-trend').getContext('2d');
+            const redGradient = ctxTrend.createLinearGradient(0, 0, 0, 300);
+            redGradient.addColorStop(0, 'rgba(226, 0, 26, 0.25)');
+            redGradient.addColorStop(1, 'rgba(226, 0, 26, 0)');
+
+            chartInstances.trend = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: sortedTrendLabels,
+                    datasets: [{
+                        label: 'Volume Monetário',
+                        data: sortedTrendValues,
+                        borderColor: '#E2001A',
+                        borderWidth: 2,
+                        fill: true,
+                        backgroundColor: redGradient,
+                        tension: 0.35,
+                        pointBackgroundColor: '#E2001A',
+                        pointHoverBackgroundColor: '#FFFFFF',
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ` $${context.raw.toLocaleString()}`; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#16171B' },
+                            ticks: { color: '#9CA3AF', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { color: '#16171B' },
+                            ticks: { 
+                                color: '#6B7280', 
+                                font: { size: 10 },
+                                callback: function(value) { return '$' + (value / 1000) + 'k'; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setTemporalGrouping(mode) {
+            temporalGroupingMode = mode;
+            
+            const btnYear = document.getElementById('btn-group-year');
+            const btnMonth = document.getElementById('btn-group-month');
+
+            if (mode === 'year') {
+                btnYear.className = "text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#E2001A] text-white transition";
+                btnMonth.className = "text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#111215] text-neutral-400 hover:text-white transition";
+            } else {
+                btnMonth.className = "text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#E2001A] text-white transition";
+                btnYear.className = "text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-[#111215] text-neutral-400 hover:text-white transition";
+            }
+
+            renderCharts();
+        }
+
+        function showToast(title, message, themeColor = "emerald") {
+            const toast = document.getElementById('notification-toast');
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-message').textContent = message;
+            
+            // Adjust borders and badges
+            const colors = {
+                emerald: "border-emerald-500/30 text-emerald-400",
+                amber: "border-amber-500/30 text-amber-400",
+                red: "border-red-500/30 text-red-400"
+            };
+            
+            toast.className = `fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-500 bg-neutral-950 border ${colors[themeColor] || colors.emerald} p-4 rounded-lg flex items-center gap-3 shadow-2xl`;
+            
+            setTimeout(() => {
+                toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-500 bg-neutral-950 border border-neutral-900 p-4 rounded-lg flex items-center gap-3 shadow-2xl";
+            }, 4500);
+        }
+    </script>
+</body>
+</html>
